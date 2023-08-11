@@ -1,5 +1,7 @@
-import psycopg2
 import requests
+import psycopg2
+from psycopg2 import sql
+from psycopg2.extras import execute_values
 
 # Dados de conexão com o banco de dados do PostgreSQL
 db_params = {
