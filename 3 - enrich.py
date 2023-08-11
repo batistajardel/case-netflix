@@ -12,6 +12,23 @@ db_params = {
 # Dados da API do AMiner Gender
 gender_api_url = "https://innovaapi.aminer.cn/tools/v1/predict/gender"
 
+# Script SQL para criação da tabela gender
+create_cast_gender = """
+
+    CREATE TABLE Cast_Gender (
+        cast_id SERIAL PRIMARY KEY,
+        show_id VARCHAR(50) REFERENCES Fact_Show(show_id),
+        member_name VARCHAR(255),
+        gender VARCHAR(10)
+    );
+
+"""
+
+# Função para criar a tabela
+def create_tables(connection, cursor):
+    cursor.execute(create_cast_gender)
+
+
 # Função para atualizar a tabela de fato com informações de gênero
 def update_fact_table_with_gender(connection, cursor):
     select_query = """
@@ -22,25 +39,25 @@ def update_fact_table_with_gender(connection, cursor):
 
     for row in rows:
         show_id = row[0]
-        cast = row[1]
+        cast = row[1].split(",")  # Divide o elenco em uma lista de nomes
 
-        gender_data = get_gender_data(cast)
-        update_query = """
-            UPDATE Fact_Show
-            SET gender = %s
-            WHERE show_id = %s;
-        """
-        cursor.execute(update_query, (gender_data, show_id))
+        for member in cast:
+            gender_data = get_gender_data(member.strip())  # Remove espaços em branco
+            insert_query = """
+                INSERT INTO Cast_Gender (show_id, member_name, gender)
+                VALUES (%s, %s, %s);
+            """
+            cursor.execute(insert_query, (show_id, member.strip(), gender_data))
     
     connection.commit()
 
 # Função para obter o gênero dos membros do elenco usando a API do AMiner Gender
-def get_gender_data(cast):
+def get_gender_data(member_name):
 
     # Formatação da URL de consulta para a API
     query_params = {
-        "name": "+".join(cast.split()),  # Formatação de nomes para URL
-        "org": ""  # Como no case não é relevante, fica fazio
+        "name": member_name,
+        "org": ""
     }
 
     # Realizando a chamada HTTP à API
@@ -48,7 +65,6 @@ def get_gender_data(cast):
 
     # Analisando o body de retorno
     if response.status_code == 200:
-
         # Parseando a resposta JSON
         api_data = response.json()
 
